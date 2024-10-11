@@ -1,0 +1,70 @@
+import cv2
+import numpy as np
+import pandas as pd
+import os 
+
+#root_reconize
+
+#set path standard image
+save_path = r"G:\Paper\Ahmadi Project\best  root image"
+#get all file in directory
+li = os.listdir(save_path)
+    
+#set resolotion pixel
+res = 8.89078559 #um
+
+def root_detection_function(direct_name, resolution_pixel_per_um):
+    #create directory for save filter
+    blue = save_path + "\\" + "blue_channel"
+    hsv_dir = save_path + "\\" + "hsv_filter"
+    
+    #filter jpg file
+    li = os.listdir(direct_name)
+    list_photo = []
+    for i in range(len(li)):
+        if li[i].find(".jpg") != -1:
+            list_photo.append(li[i])
+    #create directory for save blue channel and hsv filter
+    try:  
+        os.mkdir(blue)
+        os.mkdir(hsv_dir)   
+    except OSError as error:  
+        print(error)
+
+    c = 0 ;li = []
+    for i in list_photo:
+        #read standard image
+        image = cv2.imread(direct_name + "\\" + i)
+        #write blue channel to greyscale image
+        blue_channel = image[:,:,0]
+        #save blue channel to jpg file
+        cv2.imwrite(blue + "\\" + i ,blue_channel)
+        #read blue channel image
+        image = cv2.imread(blue + "\\" + i)
+        #filter hsv
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        #select pixel root with colorrange
+        lower_white = np.array([0, 0, 0])
+        upper_white = np.array([125, 125, 125])
+        mask_red = cv2.inRange(hsv, lower_white, upper_white)
+        cv2.imwrite(hsv_dir + "\\" + i ,mask_red)
+        #count pixel root
+        number_of_pix = np.sum(mask_red == 0)
+        #compute root area
+        root_area = number_of_pix * (resolution_pixel_per_um * (10 ** (-6)))
+        print("image {} completed".format(c))
+        
+        #create database for write to csv file
+        name = i[:len(i)-4]
+        area = str(root_area)
+        area = area[:area.find(".")+4]
+        li.append([name, area])
+        
+        c += 1
+    #create dataframe for csv file
+    data = np.array(li)
+    my_df = pd.DataFrame(data, columns=['name' ,'area'])
+    my_df.to_csv(save_path + "\\" + "export.csv")
+    return my_df
+
+my_df = root_detection_function(save_path, res)
